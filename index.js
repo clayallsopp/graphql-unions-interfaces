@@ -5,7 +5,8 @@ import {
   GraphQLString,
   GraphQLNonNull,
   GraphQLUnionType,
-  GraphQLList
+  GraphQLList,
+  GraphQLInterfaceType
 } from 'graphql';
 
 const DATA = [
@@ -14,51 +15,76 @@ const DATA = [
   { author : 'catherine cookson' }
 ];
 
+const resolveType = (data) => {
+  if (data.username) {
+    return UserType;
+  }
+  if (data.director) {
+    return MovieType;
+  }
+  if (data.author) {
+    return BookType;
+  }
+};
+
+const SearchableType = new GraphQLInterfaceType({
+  name: 'Searchable',
+  fields: {
+    searchPreviewText: { type: GraphQLString }
+  },
+  resolveType: resolveType
+});
+
 const UserType = new GraphQLObjectType({
   name : 'User',
+  interfaces: [SearchableType],
   fields : {
     username : {
       type : GraphQLString
+    },
+    searchPreviewText : {
+      type : GraphQLString,
+      resolve(data) {
+        return `(user) ${data.username}`;
+      }
     }
   }
 });
 
 const MovieType = new GraphQLObjectType({
   name : 'Movie',
+  interfaces: [SearchableType],
   fields : {
     director : {
       type : GraphQLString
+    },
+    searchPreviewText : {
+      type : GraphQLString,
+      resolve(data) {
+        return `(director) ${data.director}`;
+      }
     }
   }
 });
 
 const BookType = new GraphQLObjectType({
   name : 'Book',
+  interfaces: [SearchableType],
   fields : {
     author : {
       type : GraphQLString
-    }
-  }
-});
-
-
-const SearchableType = new GraphQLUnionType({
-  name: 'SearchableType',
-  types: [ UserType, MovieType, BookType ],
-  resolveType(data) {
-    if (data.username) {
-      return UserType;
-    }
-    if (data.director) {
-      return MovieType;
-    }
-    if (data.author) {
-      return BookType;
+    },
+    searchPreviewText : {
+      type : GraphQLString,
+      resolve(data) {
+        return `(author) ${data.author}`;
+      }
     }
   }
 });
 
 const schema = new GraphQLSchema({
+  types: [MovieType, BookType, UserType, SearchableType],
   query: new GraphQLObjectType({
     name: 'RootQueryType',
     fields: {
@@ -84,6 +110,7 @@ const schema = new GraphQLSchema({
 const query = `
   {
     search(text: "cat") {
+      searchPreviewText
       ... on User {
         username
       }
